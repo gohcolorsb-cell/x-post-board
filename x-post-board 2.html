@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投稿ボード</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="投稿ボード">
+<meta name="theme-color" content="#14171c">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1c2129;
+    --panel-2: #232935;
+    --line: #2e3542;
+    --amber: #e8a33d;
+    --amber-dim: #7a5a28;
+    --text: #e9edf1;
+    --muted: #7c8794;
+    --done: #4fa678;
+    --draft: #5b8fd6;
+    --danger: #c96a5a;
+    --a1: #e8a33d;
+    --a2: #5b8fd6;
+    --a3: #b07cd6;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans JP', 'Hiragino Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; }
+  #app { max-width: 720px; margin: 0 auto; padding: 16px 14px 80px; }
+
+  header.board {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 4px 2px 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+  }
+  header.board .title { font-size: 15px; letter-spacing: .02em; color: var(--muted); }
+  header.board .title b { color: var(--text); font-weight: 600; }
+
+  .datebar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .datebar button.nav {
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    width: 32px; height: 32px; border-radius: 6px; font-size: 15px; cursor: pointer;
+  }
+  .datebar input[type="date"] {
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    border-radius: 6px; padding: 6px 8px; font-family: inherit; flex: 1; font-size: 14px;
+  }
+  .datebar .dow { font-size: 12px; color: var(--muted); min-width: 28px; text-align: center; }
+
+  .chips { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip.active { color: var(--text); border-color: var(--muted); background: var(--panel-2); }
+  .chip.settings-btn { margin-left: auto; }
+
+  .rename-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; margin-bottom: 16px; display: none;
+  }
+  .rename-panel.open { display: block; }
+  .rename-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .rename-row:last-child { margin-bottom: 0; }
+  .rename-row .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .rename-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 6px; padding: 6px 8px; font-family: inherit; font-size: 13px;
+  }
+
+  .board-list { border-top: 1px solid var(--line); }
+  .slot {
+    border-bottom: 1px solid var(--line);
+  }
+  .slot-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer;
+  }
+  .slot-time { font-size: 20px; font-weight: 600; width: 58px; flex-shrink: 0; }
+  .slot-acc { width: 8px; align-self: stretch; border-radius: 3px; flex-shrink: 0; }
+  .slot-mid { flex: 1; min-width: 0; }
+  .slot-acc-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .slot-preview { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot-preview.empty { font-style: normal; }
+  .slot-status { font-size: 11px; padding: 3px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+  .slot-status.empty { color: var(--muted); background: transparent; border: 1px dashed var(--line); }
+  .slot-status.draft { color: var(--draft); background: rgba(91,143,214,0.12); }
+  .slot-status.done { color: var(--done); background: rgba(79,166,120,0.12); }
+  .slot-caret { color: var(--muted); font-size: 12px; flex-shrink: 0; transition: transform .15s ease; }
+  .slot.open .slot-caret { transform: rotate(90deg); }
+
+  .editor {
+    max-height: 0; overflow: hidden; transition: max-height .2s ease;
+  }
+  .slot.open .editor { max-height: 4000px; }
+  .editor-inner { padding: 4px 4px 18px; }
+
+  .tweet-block {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px; margin-bottom: 8px; position: relative;
+  }
+  .tweet-block .thread-mark { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .tweet-block textarea {
+    width: 100%; min-height: 64px; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: inherit; font-size: 14px; resize: vertical; line-height: 1.5;
+  }
+  .tweet-toolbar { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+  .tweet-count { font-size: 11px; color: var(--muted); }
+  .tweet-count.over { color: var(--danger); }
+  .tweet-actions { display: flex; gap: 6px; }
+  .tbtn {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+    font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; font-family: inherit;
+  }
+  .tbtn:hover { color: var(--text); }
+  .tbtn.danger:hover { color: var(--danger); }
+  .thumb-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .thumb { position: relative; width: 64px; height: 64px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .rm {
+    position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,.6); color: #fff;
+    border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; line-height: 1; cursor: pointer;
+  }
+
+  .add-tweet-btn {
+    width: 100%; background: transparent; border: 1px dashed var(--line); color: var(--muted);
+    padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; margin-bottom: 12px;
+  }
+  .add-tweet-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  .editor-footer { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .done-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; margin-right: auto; }
+  .done-toggle input { accent-color: var(--done); }
+  .save-btn {
+    background: var(--amber); color: #1a1206; border: none; font-weight: 600;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+    padding: 8px 16px; border-radius: 14px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease; max-width: 88%; text-align: center; line-height: 1.5;
+  }
+  .toast.show { opacity: 1; }
+
+  .footer-tools { display: flex; justify-content: center; margin-top: 24px; }
+  .reset-btn { background: none; border: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="board">
+    <div class="title"><b>投稿ボード</b> ・ 3アカウント運用</div>
+  </header>
+
+  <div class="datebar">
+    <button class="nav" id="prevDay">‹</button>
+    <input type="date" id="dateInput">
+    <span class="dow mono" id="dow"></span>
+    <button class="nav" id="nextDay">›</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="rename-panel" id="renamePanel">
+    <div class="rename-row"><span class="dot" style="background:var(--a1)"></span><input id="nameA1"></div>
+    <div class="rename-row"><span class="dot" style="background:var(--a2)"></span><input id="nameA2"></div>
+    <div class="rename-row"><span class="dot" style="background:var(--a3)"></span><input id="nameA3"></div>
+  </div>
+
+  <div class="board-list" id="boardList"></div>
+
+  <div class="footer-tools">
+    <button class="reset-btn" id="resetBtn">この日の内容をすべて消去</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SLOTS = ["08:00","12:00","15:00","17:00","20:00","23:00"];
+const ACCOUNTS = ["a1","a2","a3"];
+const DOW = ["日","月","火","水","木","金","土"];
+
+let state = {
+  date: todayStr(),
+  filter: "all",
+  names: { a1: "アカウント1", a2: "アカウント2", a3: "アカウント3" },
+  data: { a1: {}, a2: {}, a3: {} },
+  openSlot: null,
+};
+
+function todayStr() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+
+function emptyThread() { return { thread: [{ text: "", image: null }], posted: false }; }
+
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), msg.length > 20 ? 4200 : 1600);
+}
+
+async function loadNames() {
+  try {
+    const v = localStorage.getItem("settings:accounts");
+    if (v) state.names = JSON.parse(v);
+  } catch (e) { /* not set yet */ }
+}
+
+async function saveNames() {
+  try {
+    localStorage.setItem("settings:accounts", JSON.stringify(state.names));
+  } catch (e) { console.error("name save failed", e); }
+}
+
+function slotKey(acc, dateStr, slot) {
+  return `slot:${acc}:${dateStr}:${slot}`;
+}
+
+async function loadDay(dateStr) {
+  for (const acc of ACCOUNTS) {
+    state.data[acc] = {};
+    for (const slot of SLOTS) {
+      try {
+        const v = localStorage.getItem(slotKey(acc, dateStr, slot));
+        if (v) state.data[acc][slot] = JSON.parse(v);
+      } catch (e) {
+        // その枠はまだ未保存、または壊れたデータ
+      }
+    }
+  }
+}
+
+// dataURL(base64画像)を縮小・再圧縮してサイズを大きく減らす
+function compressImage(dataUrl, maxWidth = 1280, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// 保存前にサイズを見積り、上限に近い場合はエラー理由を返す
+function checkSize(json) {
+  const bytes = new Blob([json]).size;
+  const LIMIT = 4.5 * 1024 * 1024; // 5MB上限に対して余裕を持たせる
+  if (bytes > LIMIT) {
+    return { ok: false, mb: (bytes / (1024*1024)).toFixed(1) };
+  }
+  return { ok: true };
+}
+
+async function saveSlotData(acc, slot) {
+  const json = JSON.stringify(state.data[acc][slot]);
+  const check = checkSize(json);
+  if (!check.ok) {
+    return { ok: false, reason: `この枠のデータが大きすぎます(約${check.mb}MB)。画像の枚数を減らすか、別の画像に差し替えてください。` };
+  }
+  try {
+    localStorage.setItem(slotKey(acc, state.date, slot), json);
+    return { ok: true };
+  } catch (e) {
+    console.error("save failed", e);
+    const reason = (e && e.name === "QuotaExceededError")
+      ? "端末の保存容量がいっぱいです。古い日付の内容を消去してから、もう一度お試しください。"
+      : "保存に失敗しました。もう一度お試しください。";
+    return { ok: false, reason };
+  }
+}
+
+function renderChips() {
+  const chips = document.getElementById("chips");
+  chips.innerHTML = "";
+  const allChip = document.createElement("div");
+  allChip.className = "chip" + (state.filter === "all" ? " active" : "");
+  allChip.textContent = "すべて";
+  allChip.onclick = () => { state.filter = "all"; render(); };
+  chips.appendChild(allChip);
+
+  ACCOUNTS.forEach(acc => {
+    const c = document.createElement("div");
+    c.className = "chip" + (state.filter === acc ? " active" : "");
+    c.innerHTML = `<span class="dot" style="background:var(--${acc})"></span>${escapeHtml(state.names[acc])}`;
+    c.onclick = () => { state.filter = acc; render(); };
+    chips.appendChild(c);
+  });
+
+  const settingsChip = document.createElement("div");
+  settingsChip.className = "chip settings-btn";
+  settingsChip.textContent = "アカウント名を編集";
+  settingsChip.onclick = () => {
+    document.getElementById("renamePanel").classList.toggle("open");
+  };
+  chips.appendChild(settingsChip);
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+function slotStatus(acc, slot) {
+  const d = state.data[acc][slot];
+  if (!d) return "empty";
+  const hasContent = d.thread && d.thread.some(t => t.text.trim() || t.image);
+  if (!hasContent) return "empty";
+  return d.posted ? "done" : "draft";
+}
+
+function renderBoard() {
+  const list = document.getElementById("boardList");
+  list.innerHTML = "";
+
+  const accountsToShow = state.filter === "all" ? ACCOUNTS : [state.filter];
+
+  SLOTS.forEach(slot => {
+    accountsToShow.forEach(acc => {
+      const key = `${slot}__${acc}`;
+      const status = slotStatus(acc, slot);
+      const d = state.data[acc][slot];
+      const firstText = d && d.thread && d.thread[0] ? d.thread[0].text.trim() : "";
+      const threadCount = d && d.thread ? d.thread.filter(t => t.text.trim() || t.image).length : 0;
+
+      const slotEl = document.createElement("div");
+      slotEl.className = "slot" + (state.openSlot === key ? " open" : "");
+
+      const statusLabel = status === "empty" ? "未設定" : status === "draft" ? `下書き ${threadCount}件` : "投稿済み";
+
+      slotEl.innerHTML = `
+        <div class="slot-row">
+          <div class="slot-time mono">${slot}</div>
+          <div class="slot-acc" style="background:var(--${acc})"></div>
+          <div class="slot-mid">
+            ${state.filter === "all" ? `<div class="slot-acc-label">${escapeHtml(state.names[acc])}</div>` : ""}
+            <div class="slot-preview ${firstText ? "" : "empty"}">${firstText ? escapeHtml(firstText) : "タップして作成"}</div>
+          </div>
+          <div class="slot-status ${status}">${statusLabel}</div>
+          <div class="slot-caret">▸</div>
+        </div>
+        <div class="editor"><div class="editor-inner" data-acc="${acc}" data-slot="${slot}"></div></div>
+      `;
+
+      slotEl.querySelector(".slot-row").addEventListener("click", () => {
+        state.openSlot = state.openSlot === key ? null : key;
+        render();
+      });
+
+      list.appendChild(slotEl);
+
+      if (state.openSlot === key) {
+        const container = slotEl.querySelector(".editor-inner");
+        renderEditor(container, acc, slot);
+      }
+    });
+  });
+}
+
+function renderEditor(container, acc, slot) {
+  if (!state.data[acc][slot]) state.data[acc][slot] = emptyThread();
+  const data = state.data[acc][slot];
+
+  container.innerHTML = "";
+
+  data.thread.forEach((tweet, idx) => {
+    const block = document.createElement("div");
+    block.className = "tweet-block";
+    const overLimit = tweet.text.length > 280;
+    block.innerHTML = `
+      <div class="thread-mark">${idx === 0 ? "① 最初のツイート" : `${idx + 1}本目(前のツイートへの返信としてスレッドを続ける)`}</div>
+      <textarea placeholder="投稿文を入力…" data-idx="${idx}">${escapeHtml(tweet.text)}</textarea>
+      <div class="thumb-row" data-thumb="${idx}"></div>
+      <div class="tweet-toolbar">
+        <span class="tweet-count ${overLimit ? "over" : ""}">${tweet.text.length} / 280</span>
+        <div class="tweet-actions">
+          <button class="tbtn" data-action="image" data-idx="${idx}">画像を選択</button>
+          <button class="tbtn" data-action="copy" data-idx="${idx}">コピー</button>
+          ${data.thread.length > 1 ? `<button class="tbtn danger" data-action="remove" data-idx="${idx}">削除</button>` : ""}
+        </div>
+      </div>
+      <input type="file" accept="image/*" style="display:none" data-file="${idx}">
+    `;
+    container.appendChild(block);
+
+    const thumbRow = block.querySelector(`[data-thumb="${idx}"]`);
+    if (tweet.image) {
+      thumbRow.innerHTML = `<div class="thumb"><img src="${tweet.image}"><button class="rm" data-rmimg="${idx}">×</button></div>`;
+    }
+
+    block.querySelector("textarea").addEventListener("input", (e) => {
+      tweet.text = e.target.value;
+      const cnt = block.querySelector(".tweet-count");
+      cnt.textContent = `${tweet.text.length} / 280`;
+      cnt.classList.toggle("over", tweet.text.length > 280);
+    });
+
+    block.querySelector('[data-action="image"]').addEventListener("click", () => {
+      block.querySelector(`[data-file="${idx}"]`).click();
+    });
+
+    block.querySelector(`[data-file="${idx}"]`).addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          tweet.image = await compressImage(ev.target.result);
+        } catch (err) {
+          tweet.image = ev.target.result; // 圧縮に失敗したら元画像のまま使う
+        }
+        renderEditor(container, acc, slot);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const rmImgBtn = block.querySelector(`[data-rmimg="${idx}"]`);
+    if (rmImgBtn) {
+      rmImgBtn.addEventListener("click", () => {
+        tweet.image = null;
+        renderEditor(container, acc, slot);
+      });
+    }
+
+    block.querySelector('[data-action="copy"]').addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(tweet.text);
+        showToast("コピーしました");
+      } catch (e) {
+        showToast("コピーに失敗しました");
+      }
+    });
+
+    const rmBtn = block.querySelector('[data-action="remove"]');
+    if (rmBtn) {
+      rmBtn.addEventListener("click", () => {
+        data.thread.splice(idx, 1);
+        renderEditor(container, acc, slot);
+      });
+    }
+  });
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "add-tweet-btn";
+  addBtn.textContent = "＋ 次のツイートを追加してスレッドを続ける";
+  addBtn.addEventListener("click", () => {
+    data.thread.push({ text: "", image: null });
+    renderEditor(container, acc, slot);
+  });
+  container.appendChild(addBtn);
+
+  const footer = document.createElement("div");
+  footer.className = "editor-footer";
+  footer.innerHTML = `
+    <label class="done-toggle">
+      <input type="checkbox" ${data.posted ? "checked" : ""} data-done>
+      投稿済みにする
+    </label>
+    <button class="save-btn" data-save>保存する</button>
+  `;
+  container.appendChild(footer);
+
+  footer.querySelector("[data-done]").addEventListener("change", (e) => {
+    data.posted = e.target.checked;
+  });
+
+  footer.querySelector("[data-save]").addEventListener("click", async () => {
+    const result = await saveSlotData(acc, slot);
+    showToast(result.ok ? "保存しました" : result.reason);
+    render();
+  });
+}
+
+async function render() {
+  document.getElementById("dateInput").value = state.date;
+  const d = new Date(state.date + "T00:00:00");
+  document.getElementById("dow").textContent = "(" + DOW[d.getDay()] + ")";
+  renderChips();
+  document.getElementById("nameA1").value = state.names.a1;
+  document.getElementById("nameA2").value = state.names.a2;
+  document.getElementById("nameA3").value = state.names.a3;
+  renderBoard();
+}
+
+async function changeDate(newDate) {
+  state.date = newDate;
+  state.openSlot = null;
+  await loadDay(state.date);
+  render();
+}
+
+function init() {
+  document.getElementById("dateInput").addEventListener("change", (e) => changeDate(e.target.value));
+  document.getElementById("prevDay").addEventListener("click", () => {
+    const d = new Date(state.date + "T00:00:00");
+    d.setDate(d.getDate() - 1);
+    changeDate(d.toISOString().slice(0,10));
+  });
+  document.getElementById("nextDay").addEventListener("click", () => {
+    const d = new Date(state.date + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    changeDate(d.toISOString().slice(0,10));
+  });
+
+  ["nameA1","nameA2","nameA3"].forEach((id, i) => {
+    document.getElementById(id).addEventListener("change", async (e) => {
+      state.names[ACCOUNTS[i]] = e.target.value || state.names[ACCOUNTS[i]];
+      await saveNames();
+      render();
+    });
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", async () => {
+    if (!confirm("この日(" + state.date + ")の3アカウント分の内容をすべて消去します。よろしいですか?")) return;
+    for (const acc of ACCOUNTS) {
+      for (const slot of SLOTS) {
+        try {
+          localStorage.removeItem(slotKey(acc, state.date, slot));
+        } catch (e) { /* もともと未保存 */ }
+      }
+      state.data[acc] = {};
+    }
+    state.openSlot = null;
+    showToast("この日の内容を消去しました");
+    render();
+  });
+
+  (async () => {
+    await loadNames();
+    await loadDay(state.date);
+    render();
+  })();
+}
+
+init();
+</script>
+</body>
+</html>
