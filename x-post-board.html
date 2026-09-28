@@ -20,6 +20,11 @@ header{display:flex;justify-content:space-between;align-items:center;border-bott
 .editor{display:none;padding:0 2px 18px}.slot.open .editor{display:block}
 .thread{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px}.thread-title{font-size:12px;color:var(--muted);margin-bottom:7px}.thread textarea{width:100%;min-height:82px;resize:vertical;background:transparent;border:0;outline:0;color:var(--text);line-height:1.5}.count{font-size:11px;color:var(--muted)}.count.over{color:var(--danger)}
 .images{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.imgbox{aspect-ratio:1/1;border:1px dashed var(--line);border-radius:7px;overflow:hidden;position:relative;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-align:center}.imgbox img{width:100%;height:100%;object-fit:cover}.rm{position:absolute;right:3px;top:3px;width:22px;height:22px;border:0;border-radius:50%;background:#000b;color:#fff}.image-btn{margin-top:7px;width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:8px}.url-wrap{margin-top:8px}.url-wrap label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+.mv{position:absolute;bottom:3px;width:22px;height:22px;border:0;border-radius:50%;background:#000b;color:#fff;font-size:10px;padding:0}.mv.l{left:3px}.mv.r{right:3px}
+.imgnum{position:absolute;left:3px;top:3px;min-width:18px;height:18px;border-radius:9px;background:var(--amber);color:#1b1307;font-size:11px;font-weight:700;line-height:18px;text-align:center;padding:0 4px}
+.imgnum{pointer-events:none}
+.imgbox img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.preview-ov{position:fixed;inset:0;background:#000d;z-index:20;display:none;align-items:center;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 12px calc(40px + env(safe-area-inset-bottom))}.preview-ov.show{display:flex}.preview-ov img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}.preview-ov .hint{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:12px;color:var(--muted)}
 .actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:9px 12px}.primary{background:var(--amber);color:#1b1307;border-color:var(--amber);font-weight:700}.danger{color:var(--danger)}
 .add{width:100%;border:1px dashed var(--line);background:transparent;color:var(--muted);padding:9px;border-radius:8px;margin-bottom:9px}
 .footer{margin-top:18px;text-align:center}.reset{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:12px}
@@ -99,7 +104,7 @@ function renderEditor(box,a,s){
   if(!Array.isArray(t.images))t.images=t.image?[t.image]:[];
   t.images=t.images.slice(0,4);
   let b=document.createElement("div");b.className="thread";
-  b.innerHTML=`<div class="thread-title">${i===0?"① 最初の投稿":`②以降・前の投稿への返信`}</div><textarea maxlength="280" placeholder="投稿文を入力…">${esc(t.text)}</textarea><div class="count">${t.text.length} / 280</div><div class="images">${[0,1,2,3].map(j=>`<div class="imgbox" data-img="${j}">${t.images[j]?`<img src="${t.images[j]}"><button class="rm" data-rm="${j}">×</button>`:"＋画像"}</div>`).join("")}</div><div class="actions"><button class="btn image-btn">画像を選択（最大4枚）</button><button class="btn copy-btn">この投稿をコピー</button>${d.thread.length>1?`<button class="btn danger del-btn">この投稿を削除</button>`:""}</div>${i===d.thread.length-1?`<div class="url-wrap"><label>この投稿に付けるURL（最後の投稿用）</label><input class="url" value="${esc(t.url||"")}" placeholder="https://..."></div>`:""}`;
+  b.innerHTML=`<div class="thread-title">${i===0?"① 最初の投稿":`②以降・前の投稿への返信`}</div><textarea maxlength="280" placeholder="投稿文を入力…">${esc(t.text)}</textarea><div class="count">${t.text.length} / 280</div><div class="images">${[0,1,2,3].map(j=>`<div class="imgbox" data-img="${j}">${t.images[j]?`<img src="${t.images[j]}"><span class="imgnum">${j+1}</span><button class="rm" data-rm="${j}">×</button>${j>0?`<button class="mv l" data-mv="${j}" data-dir="-1">◀</button>`:""}${j<t.images.length-1?`<button class="mv r" data-mv="${j}" data-dir="1">▶</button>`:""}`:"＋画像"}</div>`).join("")}</div><div class="actions"><button class="btn image-btn">画像を選択（最大4枚）</button><button class="btn copy-btn">この投稿をコピー</button>${d.thread.length>1?`<button class="btn danger del-btn">この投稿を削除</button>`:""}</div>${i===d.thread.length-1?`<div class="url-wrap"><label>この投稿に付けるURL（最後の投稿用）</label><input class="url" value="${esc(t.url||"")}" placeholder="https://..."></div>`:""}`;
   box.appendChild(b);
   let ta=b.querySelector("textarea");ta.oninput=()=>{t.text=ta.value;let c=b.querySelector(".count");c.textContent=`${t.text.length} / 280`;c.classList.toggle("over",t.text.length>280)};
   let urlInp=b.querySelector(".url");if(urlInp)urlInp.oninput=()=>{t.url=urlInp.value};
@@ -107,10 +112,17 @@ function renderEditor(box,a,s){
    let remain=4-t.images.length;
    if(remain<=0){toast("画像は1投稿につき最大4枚です");return}
    let inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.multiple=true;
-   inp.onchange=async()=>{let files=[...inp.files].slice(0,remain);for(let f of files){let data=await readImage(f);t.images.push(data)}t.images=t.images.slice(0,4);renderEditor(box,a,s)};
+   inp.onchange=async()=>{let files=[...inp.files].sort((x,y)=>x.name.localeCompare(y.name,"ja",{numeric:true,sensitivity:"base"})).slice(0,remain);for(let f of files){let data=await readImage(f);t.images.push(data)}t.images=t.images.slice(0,4);renderEditor(box,a,s);if(files.length>1)toast("ファイル名の昇順で追加しました。違う場合は ◀ ▶ で入れ替えできます")};
    inp.click()
   };
   b.querySelectorAll("[data-rm]").forEach(x=>x.onclick=()=>{t.images.splice(+x.dataset.rm,1);renderEditor(box,a,s)});
+  b.querySelectorAll("[data-mv]").forEach(x=>x.onclick=()=>{
+   let j=+x.dataset.mv,k=j+ +x.dataset.dir;
+   if(k<0||k>=t.images.length)return;
+   [t.images[j],t.images[k]]=[t.images[k],t.images[j]];
+   renderEditor(box,a,s)
+  });
+  b.querySelectorAll(".imgbox img").forEach(attachPreview);
   b.querySelector(".copy-btn").onclick=async()=>{
    let out=t.text+(t.url?`\n${t.url}`:"");
    try{await navigator.clipboard.writeText(out);toast(`${i+1}投稿目をコピーしました`)}catch(e){toast("コピーできませんでした")}
@@ -125,10 +137,21 @@ function renderEditor(box,a,s){
  act.querySelector(".toggle-btn").onclick=()=>{d.posted=!d.posted;save(a,s);render()};
 }
 function readImage(file){return new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>{let img=new Image();img.onload=()=>{let max=1280,scale=Math.min(1,max/img.width),c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",.72))};img.onerror=rej;img.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+const ov=document.createElement("div");ov.className="preview-ov";ov.innerHTML='<img alt=""><div class="hint">タップで閉じる</div>';document.body.appendChild(ov);
+let ovOpenedAt=0;
+ov.onclick=()=>{if(Date.now()-ovOpenedAt<400)return;ov.classList.remove("show")};
+function attachPreview(im){
+ let timer=null,sx=0,sy=0;
+ const cancel=()=>{clearTimeout(timer);timer=null};
+ im.addEventListener("pointerdown",e=>{sx=e.clientX;sy=e.clientY;cancel();timer=setTimeout(()=>{timer=null;ov.querySelector("img").src=im.src;ovOpenedAt=Date.now();ov.classList.add("show");if(navigator.vibrate)navigator.vibrate(10)},450)});
+ im.addEventListener("pointermove",e=>{if(timer&&Math.hypot(e.clientX-sx,e.clientY-sy)>10)cancel()});
+ ["pointerup","pointercancel","pointerleave"].forEach(ev=>im.addEventListener(ev,cancel));
+ im.addEventListener("contextmenu",e=>e.preventDefault());
+}
 function render(){let d=new Date(state.date+"T00:00:00");document.getElementById("date").value=state.date;document.getElementById("dow").textContent="("+DOW[d.getDay()]+")";renderAccounts();renderBoard()}
 document.getElementById("date").onchange=e=>{state.date=e.target.value;state.open=null;loadDay();render()};
 document.getElementById("prev").onclick=()=>move(-1);document.getElementById("next").onclick=()=>move(1);
-function move(n){let d=new Date(state.date+"T00:00:00");d.setDate(d.getDate()+n);state.date=d.toISOString().slice(0,10);state.open=null;loadDay();render()}
+function move(n){let d=new Date(state.date+"T00:00:00");d.setDate(d.getDate()+n);state.date=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);state.open=null;loadDay();render()}
 document.getElementById("reset").onclick=()=>{if(!confirm("この日の3アカウント分をすべて消去します。よろしいですか？"))return;ACC.forEach(a=>SLOTS.forEach(s=>localStorage.removeItem(key(a,s))));loadDay();state.open=null;toast("消去しました");render()};
 loadSettings();loadDay();render();
 </script>
